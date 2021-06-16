@@ -1,4 +1,4 @@
-module github.com/jenningsloy318/vsphere-exporter
+module github.com/jenningsloy318/vsphere_exporter
 
 go 1.15
 
