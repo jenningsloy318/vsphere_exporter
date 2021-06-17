@@ -2,11 +2,12 @@ package collector
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	"github.com/jenningsloy318/vsphere_exporter/vmware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"sync"
-	"time"
 )
 
 // Metric name parts.
@@ -38,9 +39,9 @@ type VshpereCollector struct {
 func NewVshpereCollector(context context.Context, url string, username string, password string) *VshpereCollector {
 	var collectors map[string]prometheus.Collector
 
-	vsClient := vmware.NewVMClient(context, url, username, password)
-	if vsClient == nil {
-		log.Infof("Errors occour when creating vshpere client")
+	vsClient, err := vmware.NewVMClient(context, url, username, password)
+	if err != nil {
+		log.Errorf("Errors occour when creating vshpere client, %v", err)
 	} else {
 		hostCollector := NewHostCollector(namespace, vsClient)
 		collectors = map[string]prometheus.Collector{"host": hostCollector}

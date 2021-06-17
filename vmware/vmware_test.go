@@ -12,7 +12,11 @@ var pass = "pass"
 func TestVC(t *testing.T) {
 
 	ctx := context.Background()
-	newVC := NewVMClient(ctx, vsHost, user, pass)
+	newVC, err := NewVMClient(ctx, vsHost, user, pass)
+	if err != nil {
+		t.Logf("Error when creating vc client, %v", err)
+		return
+	}
 	if newVC.govmomiClient.IsVC() {
 		t.Logf("This is a vCenter")
 	}
@@ -20,10 +24,14 @@ func TestVC(t *testing.T) {
 
 func TestVcHost(t *testing.T) {
 	ctx := context.Background()
-	newVC := NewVMClient(ctx, vsHost, user, pass)
-
+	newVC, err := NewVMClient(ctx, vsHost, user, pass)
+	if err != nil {
+		t.Logf("Error when creating vc client, %v", err)
+		return
+	}
 	hosts, err := newVC.ListHost()
 	if err != nil {
+		t.Logf("Error when listing hosts, %v", err)
 		return
 	}
 
@@ -31,10 +39,14 @@ func TestVcHost(t *testing.T) {
 }
 func TestVcVM(t *testing.T) {
 	ctx := context.Background()
-	newVC := NewVMClient(ctx, vsHost, user, pass)
-
+	newVC, err := NewVMClient(ctx, vsHost, user, pass)
+	if err != nil {
+		t.Logf("Error when creating vc client, %v", err)
+		return
+	}
 	VMs, err := newVC.ListVirtualMachine()
 	if err != nil {
+		t.Logf("Error when listing virtual machines, %v", err)
 		return
 	}
 	t.Logf("Virtual machines %v\n", VMs)
@@ -43,23 +55,34 @@ func TestVcVM(t *testing.T) {
 
 func TestVcDatastore(t *testing.T) {
 	ctx := context.Background()
-	newVC := NewVMClient(ctx, vsHost, user, pass)
-	datastores, err := newVC.ListDatastore()
+	newVC, err := NewVMClient(ctx, vsHost, user, pass)
 	if err != nil {
+		t.Logf("Error when creating vc client, %v", err)
 		return
 	}
+	datastores, err := newVC.ListDatastore()
+	if err != nil {
+		t.Logf("Error when listing datastores, %v", err)
+		return
+	}
+
 	t.Logf("Datastore %v\n", datastores)
 
 }
 
 func TestVcNetwork(t *testing.T) {
 	ctx := context.Background()
-	newVC := NewVMClient(ctx, vsHost, user, pass)
-
-	networks, err := newVC.ListNetwork()
+	newVC, err := NewVMClient(ctx, vsHost, user, pass)
 	if err != nil {
+		t.Logf("Error when creating vc client, %v", err)
 		return
 	}
+	networks, err := newVC.ListNetwork()
+	if err != nil {
+		t.Logf("Error when listing networks, %v", err)
+		return
+	}
+
 	t.Logf("Networks %v\n", networks)
 
 }

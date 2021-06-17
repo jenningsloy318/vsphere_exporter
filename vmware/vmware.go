@@ -3,12 +3,13 @@ package vmware
 import (
 	"context"
 	"fmt"
+	"net/url"
+
 	"github.com/prometheus/common/log"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
-	"net/url"
 )
 
 type VMClient struct {
@@ -16,33 +17,33 @@ type VMClient struct {
 	govmomiClient *govmomi.Client
 }
 
-func NewVMClient(context context.Context, vsHost string, username string, password string) *VMClient {
+func NewVMClient(context context.Context, vcHost string, username string, password string) (*VMClient, error) {
 
-	vsURL, err := soap.ParseURL(fmt.Sprintf("https://%s", vsHost))
+	vcURL, err := soap.ParseURL(fmt.Sprintf("https://%s", vcHost))
 
 	if err != nil {
 		log.Errorf("error when parsing the vCenter URL, %v", err)
-		return nil
+		return nil, err
 	}
 
-	vsURL.User = url.UserPassword(username, password)
+	vcURL.User = url.UserPassword(username, password)
 
-	newVcClient, err := govmomi.NewClient(context, vsURL, true)
+	newVcClient, err := govmomi.NewClient(context, vcURL, true)
 
 	if err != nil {
 		log.Errorf("error when creating new vCenter client, %v", err)
-		return nil
+		return nil, err
 	}
 
-	err = newVcClient.Login(context, vsURL.User)
+	err = newVcClient.Login(context, vcURL.User)
 	if err != nil {
 		log.Errorf("error when trying to login on vCenter, %v", err)
-		return nil
+		//		return nil, err
 	}
 	return &VMClient{
 		ctx:           context,
 		govmomiClient: newVcClient,
-	}
+	}, nil
 }
 
 func (vmc *VMClient) ListVirtualMachine() ([]mo.VirtualMachine, error) {
