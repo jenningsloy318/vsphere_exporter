@@ -3,6 +3,7 @@ package vmware
 import (
 	"context"
 	"fmt"
+	"github.com/prometheus/common/log"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -15,84 +16,100 @@ type VMClient struct {
 	govmomiClient *govmomi.Client
 }
 
-func NewVMClient(vcURL string, username string, password string, insecure bool) *VMClient {
+func NewVMClient(context context.Context, vsHost string, username string, password string) *VMClient {
 
-	ctx := context.Background()
-	vsURL, err := soap.ParseURL(vcURL)
+	vsURL, err := soap.ParseURL(fmt.Sprintf("https://%s", vsHost))
 
 	if err != nil {
-		fmt.Errorf("error when parsing the vcenter URL,%v", err)
+		log.Errorf("error when parsing the vCenter URL, %v", err)
+		return nil
 	}
 
 	vsURL.User = url.UserPassword(username, password)
 
-	newVcClient, err := govmomi.NewClient(ctx, vsURL, insecure)
+	newVcClient, err := govmomi.NewClient(context, vsURL, true)
 
 	if err != nil {
-		fmt.Errorf("error when creating new vc client ,%v", err)
+		log.Errorf("error when creating new vCenter client, %v", err)
+		return nil
 	}
 
-	err = newVcClient.Login(ctx, vsURL.User)
+	err = newVcClient.Login(context, vsURL.User)
 	if err != nil {
-		fmt.Errorf("error when login vc  ,%v", err)
+		log.Errorf("error when trying to login on vCenter, %v", err)
+		return nil
 	}
 	return &VMClient{
-		ctx:           ctx,
+		ctx:           context,
 		govmomiClient: newVcClient,
 	}
 }
 
-func (vmc *VMClient) ListVirtualMachine() error {
+func (vmc *VMClient) ListVirtualMachine() ([]mo.VirtualMachine, error) {
 	vim25Client := vmc.govmomiClient.Client
 	ctx := vmc.ctx
 	viewManager := view.NewManager(vim25Client)
 
 	virtualMachineListView, err := viewManager.CreateContainerView(ctx, vim25Client.ServiceContent.RootFolder, []string{"VirtualMachine"}, true)
-
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var virtualMachineList []mo.VirtualMachine
 	err = virtualMachineListView.Retrieve(ctx, []string{"VirtualMachine"}, []string{"summary"}, &virtualMachineList)
-	if err != nil {
-		return err
-	}
-
-	for _, vm := range virtualMachineList {
-		fmt.Printf("%s: %s\n", vm.Summary.Config.Name, vm.Summary.Config.GuestFullName)
-	}
-	return nil
+	return virtualMachineList, err
 }
 
-func (vmc *VMClient) ListHost() error {
+func (vmc *VMClient) ListHost() ([]mo.HostSystem, error) {
 	vim25Client := vmc.govmomiClient.Client
 	ctx := vmc.ctx
 	viewManager := view.NewManager(vim25Client)
 
 	hostSystemListView, err := viewManager.CreateContainerView(ctx, vim25Client.ServiceContent.RootFolder, []string{"HostSystem"}, true)
-
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var hostSystemList []mo.HostSystem
 	err = hostSystemListView.Retrieve(ctx, []string{"HostSystem"}, []string{"summary"}, &hostSystemList)
+	return hostSystemList, err
+
+}
+
+func (vmc *VMClient) ListDatastore() ([]mo.Datastore, error) {
+	vim25Client := vmc.govmomiClient.Client
+	ctx := vmc.ctx
+	viewManager := view.NewManager(vim25Client)
+
+	datastoreListView, err := viewManager.CreateContainerView(ctx, vim25Client.ServiceContent.RootFolder, []string{"Datastore"}, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for _, hostSystem := range hostSystemList {
+	var datastoreList []mo.Datastore
+	err = datastoreListView.Retrieve(ctx, []string{"Datastore"}, []string{"summary"}, &datastoreList)
+	return datastoreList, err
 
-		totalCPU := int64(hostSystem.Summary.Hardware.CpuMhz) * int64(hostSystem.Summary.Hardware.NumCpuCores) / 1000
-		freeCPU := int64(totalCPU) - int64(hostSystem.Summary.QuickStats.OverallCpuUsage)/1000
-		totalMemory := float64(hostSystem.Summary.Hardware.MemorySize) / 1024 / 1024 / 1024
-		usedMemory := float64(hostSystem.Summary.QuickStats.OverallMemoryUsage) / 1024
-		fmt.Printf("Host %s\t", hostSystem.Summary.Config.Name)
-		fmt.Printf("Total CPU: %d GHz\t", totalCPU)
-		fmt.Printf("Free CPU: %d GHz\t", freeCPU)
-		fmt.Printf("Total Memory: %f GB\t", totalMemory)
-		fmt.Printf("Used Memory: %f GB\n", usedMemory)
+}
+
+func (vmc *VMClient) ListNetwork() ([]mo.Network, error) {
+	vim25Client := vmc.govmomiClient.Client
+	ctx := vmc.ctx
+	viewManager := view.NewManager(vim25Client)
+
+	networkListView, err := viewManager.CreateContainerView(ctx, vim25Client.ServiceContent.RootFolder, []string{"Network"}, true)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+
+	var networkList []mo.Network
+	err = networkListView.Retrieve(ctx, []string{"Network"}, []string{"summary"}, &networkList)
+	return networkList, err
+
+}
+func (vmc *VMClient) Logout() error {
+
+	err := vmc.govmomiClient.Logout(vmc.ctx)
+	return err
+
 }

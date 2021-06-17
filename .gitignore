@@ -14,9 +14,9 @@
 
 build/
 
-*.yml
-*.yaml
 
 
 # Editor backup files
 *~
+
+types.txt

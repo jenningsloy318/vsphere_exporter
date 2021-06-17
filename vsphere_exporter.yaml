@@ -1,0 +1,4 @@
+clusters:
+    10.36.51.11:
+      username: user
+      password: pass
