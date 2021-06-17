@@ -1,0 +1,28 @@
+mo.Network{
+  ManagedEntity:mo.ManagedEntity{
+    ExtensibleManagedObject:mo.ExtensibleManagedObject{
+      Self:types.ManagedObjectReference{
+        Type:"DistributedVirtualPortgroup", 
+        Value:"dvportgroup-25"
+        }, 
+      Value:[]types.BaseCustomFieldValue(nil), 
+      AvailableField:[]types.CustomFieldDef(nil)
+    }, 
+    Parent:(*types.ManagedObjectReference)(nil), 
+    CustomValue:[]types.BaseCustomFieldValue(nil), 
+    OverallStatus:"", 
+    ConfigStatus:"", 
+    ConfigIssue:[]types.BaseEvent(nil), 
+    EffectiveRole:[]int32(nil), 
+    Permission:[]types.Permission(nil), 
+    Name:"", DisabledMethod:[]string(nil), 
+    RecentTask:[]types.ManagedObjectReference(nil), 
+    DeclaredAlarmState:[]types.AlarmState(nil), 
+    TriggeredAlarmState:[]types.AlarmState(nil), 
+    AlarmActionsEnabled:(*bool)(nil), 
+    Tag:[]types.Tag(nil)
+    }, 
+  Summary:(*types.NetworkSummary)(0xc0002a4100), 
+  Host:[]types.ManagedObjectReference(nil), 
+  Vm:[]types.ManagedObjectReference(nil), Name:""
+}

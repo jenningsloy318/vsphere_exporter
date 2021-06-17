@@ -35,7 +35,7 @@ func TestVcHost(t *testing.T) {
 		return
 	}
 
-	t.Logf("hosts %v\n", hosts)
+	t.Logf("hosts %#v\n", hosts[0])
 }
 func TestVcVM(t *testing.T) {
 	ctx := context.Background()
@@ -49,7 +49,7 @@ func TestVcVM(t *testing.T) {
 		t.Logf("Error when listing virtual machines, %v", err)
 		return
 	}
-	t.Logf("Virtual machines %v\n", VMs)
+	t.Logf("Virtual machines %#v\n", VMs[0])
 
 }
 
@@ -66,7 +66,7 @@ func TestVcDatastore(t *testing.T) {
 		return
 	}
 
-	t.Logf("Datastore %v\n", datastores)
+	t.Logf("Datastore %#v\n", datastores[0])
 
 }
 
@@ -83,6 +83,6 @@ func TestVcNetwork(t *testing.T) {
 		return
 	}
 
-	t.Logf("Networks %v\n", networks)
+	t.Logf("Networks %#v\n", networks[0])
 
 }

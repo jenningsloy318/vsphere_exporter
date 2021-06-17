@@ -4,18 +4,17 @@ import (
 	"github.com/jenningsloy318/vsphere_exporter/vmware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"github.com/vmware/govmomi/vim25/types"
 )
 
 var (
-	hostSubsystem = "host"
-	//hostLabelNames = []string{"category", "name"}
-	hostLabelNames = []string{"category"}
-	hostMetrics    = map[string]hostMetric{
-		"host_powerstate": {
+	hostSubsystem  = "host"
+	hostLabelNames = []string{"category", "name"}
+	//hostLabelNames = []string{"category"}
+	hostMetrics = map[string]hostMetric{
+		"host_uptime": {
 			desc: prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, hostSubsystem, "up"),
-				"up state of the host, 1(OK),2(Down)",
+				prometheus.BuildFQName(namespace, hostSubsystem, "uptime"),
+				"uptime of the",
 				hostLabelNames,
 				nil,
 			),
@@ -68,32 +67,14 @@ func (h *HostCollector) Collect(ch chan<- prometheus.Metric) {
 	} else {
 		// process the host status
 		for _, host := range hostList {
-			//hostSummary := host.Summary
-			//hostHW := host.Hardware
-			hostRuntime := host.Runtime
-			//hostConfig := host.Config
-			//hostLabelValues := []string{"ESXi", string(hostConfig.Host.Value)}
-			hostLabelValues := []string{"ESXi"}
-			hostPowerStateValue := retrievePowerState(hostRuntime.PowerState)
+			hostSummary := host.Summary
+			hostName := hostSummary.Config.Name
+			hostLabelValues := []string{"ESXi", hostName}
+			hostUptimeValue := float64(hostSummary.QuickStats.Uptime)
 
-			ch <- prometheus.MustNewConstMetric(h.metrics["host_powerstate"].desc, prometheus.GaugeValue, hostPowerStateValue, hostLabelValues...)
+			ch <- prometheus.MustNewConstMetric(h.metrics["host_uptime"].desc, prometheus.GaugeValue, hostUptimeValue, hostLabelValues...)
 
 		}
 		h.collectorScrapeStatus.WithLabelValues("host").Set(float64(1))
 	}
-}
-
-func retrievePowerState(s types.HostSystemPowerState) float64 {
-
-	if s == types.HostSystemPowerStatePoweredOn {
-		return float64(1)
-	}
-	if s == types.HostSystemPowerStatePoweredOff {
-		return float64(2)
-	}
-	if s == types.HostSystemPowerStatePoweredOff {
-		return float64(3)
-	}
-
-	return float64(4)
 }
