@@ -1,3 +1,5 @@
+mode: single
+enabled_cluster: 10.36.51.11
 clusters:
     10.36.51.11:
       username: user
