@@ -2,12 +2,11 @@ package collector
 
 import (
 	"context"
-	"sync"
-	"time"
-
 	"github.com/jenningsloy318/vsphere_exporter/vmware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
+	"github.com/vmware/govmomi/vim25/types"
+	"time"
 )
 
 // Metric name parts.
@@ -44,7 +43,8 @@ func NewVshpereCollector(context context.Context, url string, username string, p
 		log.Errorf("Errors occour when creating vshpere client, %v", err)
 	} else {
 		hostCollector := NewHostCollector(namespace, vsClient)
-		collectors = map[string]prometheus.Collector{"host": hostCollector}
+		vmCollector := NewVmCollector(namespace, vsClient)
+		collectors = map[string]prometheus.Collector{"host": hostCollector, "vm": vmCollector}
 	}
 
 	return &VshpereCollector{
@@ -74,22 +74,75 @@ func (r *VshpereCollector) Collect(ch chan<- prometheus.Metric) {
 
 	scrapeTime := time.Now()
 	if r.vsClient != nil {
-		defer r.vsClient.Logout()
-		r.vsherehUp.Set(1)
-		wg := &sync.WaitGroup{}
-		wg.Add(len(r.collectors))
 
-		defer wg.Wait()
-		for _, collector := range r.collectors {
-			go func(collector prometheus.Collector) {
-				defer wg.Done()
-				collector.Collect(ch)
-			}(collector)
-		}
+		r.vsherehUp.Set(1)
+
+		r.collectors["host"].Collect(ch)
+		r.collectors["vm"].Collect(ch)
 	} else {
 		r.vsherehUp.Set(0)
 	}
 
 	ch <- r.vsherehUp
 	ch <- prometheus.MustNewConstMetric(totalScrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds())
+	r.vsClient.Logout()
+}
+
+func parseOveralStatus(status types.ManagedEntityStatus) float64 {
+	if status == "green" {
+		return float64(1)
+	}
+	if status == "yellow" {
+		return float64(2)
+	}
+	if status == "gray" {
+		return float64(3)
+	}
+
+	return float64(4)
+}
+
+func parsePowerState(powerState types.HostSystemPowerState) float64 {
+	if powerState == "poweredOn" {
+		return float64(1)
+	}
+	if powerState == "poweredOff" {
+		return float64(2)
+	}
+	if powerState == "standBy" {
+		return float64(3)
+	}
+
+	return float64(4)
+}
+func parseConnectionState(connectionState types.HostSystemConnectionState) float64 {
+	if connectionState == "active" {
+		return float64(1)
+	}
+	if connectionState == "activeDefer" {
+		return float64(2)
+	}
+	if connectionState == "armed" {
+		return float64(3)
+	}
+	if connectionState == "init" {
+		return float64(4)
+	}
+	if connectionState == "down" {
+		return float64(5)
+	}
+	return float64(6)
+}
+
+func parseHostStandbyMode(standbyMode string) float64 {
+	if standbyMode == "in" {
+		return float64(1)
+	}
+	if standbyMode == "exiting" {
+		return float64(2)
+	}
+	if standbyMode == "entering" {
+		return float64(3)
+	}
+	return float64(4)
 }

@@ -7,9 +7,11 @@ import (
 
 	"github.com/prometheus/common/log"
 	"github.com/vmware/govmomi"
+	"github.com/vmware/govmomi/performance"
 	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
+	"github.com/vmware/govmomi/vim25/types"
 )
 
 type VMClient struct {
@@ -34,12 +36,6 @@ func NewVMClient(context context.Context, vcHost string, username string, passwo
 		log.Errorf("error when creating new vCenter client, %v", err)
 		return nil, err
 	}
-
-	err = newVcClient.Login(context, vcURL.User)
-	if err != nil {
-		log.Errorf("error when trying to login on vCenter, %v", err)
-		//		return nil, err
-	}
 	return &VMClient{
 		ctx:           context,
 		govmomiClient: newVcClient,
@@ -57,7 +53,8 @@ func (vmc *VMClient) ListVirtualMachine() ([]mo.VirtualMachine, error) {
 	}
 
 	var virtualMachineList []mo.VirtualMachine
-	err = virtualMachineListView.Retrieve(ctx, []string{"VirtualMachine"}, []string{"summary"}, &virtualMachineList)
+	//https://code.vmware.com/apis/358/vsphere/doc/vim.VirtualMachine.html, VirtualMachine has multiple properties, but here we choose "summary","config","guest","guestHeartbeatStatus","runtime"
+	err = virtualMachineListView.Retrieve(ctx, []string{"VirtualMachine"}, []string{"summary", "config", "guest", "guestHeartbeatStatus", "runtime"}, &virtualMachineList)
 	return virtualMachineList, err
 }
 
@@ -65,6 +62,7 @@ func (vmc *VMClient) ListHost() ([]mo.HostSystem, error) {
 	vim25Client := vmc.govmomiClient.Client
 	ctx := vmc.ctx
 	viewManager := view.NewManager(vim25Client)
+	// containerView has multiple properties when creating the container view, mainy categoried as 5 types,  Folder / Datacenter /ComputeResource /ResourcePool /HostSystem,here we can use RootFolder, which is a Folder, for full list of supported property
 
 	hostSystemListView, err := viewManager.CreateContainerView(ctx, vim25Client.ServiceContent.RootFolder, []string{"HostSystem"}, true)
 	if err != nil {
@@ -72,7 +70,8 @@ func (vmc *VMClient) ListHost() ([]mo.HostSystem, error) {
 	}
 
 	var hostSystemList []mo.HostSystem
-	err = hostSystemListView.Retrieve(ctx, []string{"HostSystem"}, []string{"summary"}, &hostSystemList)
+	// https://code.vmware.com/apis/358/vsphere/doc/vim.HostSystem.html, here HostSystem has multiple Properties that can be retrieved, but here we choose "summary","runtime","hardware","config","capability"
+	err = hostSystemListView.Retrieve(ctx, []string{"HostSystem"}, []string{"summary", "runtime", "hardware", "config", "capability"}, &hostSystemList)
 	return hostSystemList, err
 
 }
@@ -88,7 +87,8 @@ func (vmc *VMClient) ListDatastore() ([]mo.Datastore, error) {
 	}
 
 	var datastoreList []mo.Datastore
-	err = datastoreListView.Retrieve(ctx, []string{"Datastore"}, []string{"summary"}, &datastoreList)
+	//https://code.vmware.com/apis/358/vsphere/doc/vim.Datastore.html, datastore have several properties, we choose "summary","info"
+	err = datastoreListView.Retrieve(ctx, []string{"Datastore"}, []string{"summary", "info"}, &datastoreList)
 	return datastoreList, err
 
 }
@@ -104,10 +104,26 @@ func (vmc *VMClient) ListNetwork() ([]mo.Network, error) {
 	}
 
 	var networkList []mo.Network
-	err = networkListView.Retrieve(ctx, []string{"Network"}, []string{"summary"}, &networkList)
+	// https://code.vmware.com/apis/358/vsphere/doc/vim.Network.html, network only have four properties, we choose "name" and "summary"
+	err = networkListView.Retrieve(ctx, []string{"Network"}, []string{"summary", "name"}, &networkList)
 	return networkList, err
 
 }
+
+func (vmc *VMClient) ListPerfCounters() (map[string]*types.PerfCounterInfo, error) {
+	vim25Client := vmc.govmomiClient.Client
+	ctx := vmc.ctx
+
+	perfManager := performance.NewManager(vim25Client)
+	perfCounters, err := perfManager.CounterInfoByName(ctx)
+	if err != nil {
+		log.Errorf("error when getting perf counters from vcenter, %v", err)
+		return nil, err
+	}
+	return perfCounters, nil
+
+}
+
 func (vmc *VMClient) Logout() error {
 
 	err := vmc.govmomiClient.Logout(vmc.ctx)

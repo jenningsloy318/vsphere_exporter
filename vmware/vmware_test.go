@@ -86,3 +86,22 @@ func TestVcNetwork(t *testing.T) {
 	t.Logf("Networks %#v\n", networks[0])
 
 }
+
+func TestVcPerfCounters(t *testing.T) {
+	ctx := context.Background()
+	newVC, err := NewVMClient(ctx, vsHost, user, pass)
+	if err != nil {
+		t.Logf("Error when creating vc client, %v", err)
+		return
+	}
+	perfCounters, err := newVC.ListPerfCounters()
+	if err != nil {
+		t.Logf("Error when listing networks, %v", err)
+		return
+	}
+
+	for name, perfCounter := range perfCounters {
+		t.Logf("Perf Counters %#v\n", perfCounters)
+	}
+
+}
