@@ -1,9 +1,11 @@
 package collector
 
 import (
+	"fmt"
 	"github.com/jenningsloy318/vsphere_exporter/vmware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
+	"strings"
 )
 
 var (
@@ -259,6 +261,157 @@ func (h *HostCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 			ch <- prometheus.MustNewConstMetric(h.metrics["host_in_quarantine_mode"].desc, prometheus.GaugeValue, hostInQuarantineModeValue, hostLabelValues...)
 
+			healthSystemRuntime := hostRumtime.HealthSystemRuntime
+
+			systemHealthInfo := healthSystemRuntime.SystemHealthInfo
+			hardwareStatusInfo := healthSystemRuntime.HardwareStatusInfo
+
+			for _, hostNumericSensorInfo := range systemHealthInfo.NumericSensorInfo {
+				sensorName := hostNumericSensorInfo.Name
+				sensorID := hostNumericSensorInfo.Id
+				sensorType := hostNumericSensorInfo.SensorType
+				sensorCurrentValue := float64(hostNumericSensorInfo.CurrentReading)
+				sensorDescriptionKey := hostNumericSensorInfo.HealthState.GetElementDescription().Key
+				sensorDescription := hostNumericSensorInfo.HealthState.GetElementDescription().Description
+				sensorDescriptionSummary := sensorDescription.Summary
+				sensorDescriptionLabel := sensorDescription.Label
+				sensorTimeStamp := hostNumericSensorInfo.TimeStamp
+				fmt.Printf("sensorDescriptionKey:%s,sensorDescriptionSummary:%s,sensorDescriptionLabel:%s\n", sensorDescriptionKey, sensorDescriptionSummary, sensorDescriptionLabel)
+				metricLabelNames := append(hostLabelNames, "sensorName", "sensorID", "sensorType", "Time")
+				metricLabelValues := append(hostLabelValues, sensorName, sensorID, sensorType, sensorTimeStamp)
+				metricName := fmt.Sprintf("%s_sensor_state", strings.ToLower(strings.ReplaceAll(sensorType, " ", "_")))
+
+				sensorDesc := prometheus.NewDesc(
+					prometheus.BuildFQName(namespace, hostSubsystem, metricName),
+					sensorDescriptionSummary,
+					metricLabelNames,
+					nil,
+				)
+				ch <- prometheus.MustNewConstMetric(sensorDesc, prometheus.GaugeValue, sensorCurrentValue, metricLabelValues...)
+
+			}
+
+			memoryStatusInfo := hardwareStatusInfo.MemoryStatusInfo
+
+			for _, memoryStatusInfoItem := range memoryStatusInfo {
+				memoryStatusInfoData := memoryStatusInfoItem.GetHostHardwareElementInfo()
+				memoryStatusName := memoryStatusInfoData.Name
+				memoryStatusDescription := memoryStatusInfoData.Status.GetElementDescription()
+				metricLabelNames := append(hostLabelNames, "component")
+				metricLabelValues := append(hostLabelValues, memoryStatusName)
+				memoryHWDesc := prometheus.NewDesc(
+					prometheus.BuildFQName(namespace, hostSubsystem, "memory_hardware_status"),
+					"memory hardware status, 0 for green, 1 for red",
+					metricLabelNames,
+					nil,
+				)
+				var memoryHWstateValue float64
+				if memoryStatusDescription.Key == "Green" {
+					memoryHWstateValue = float64(0)
+				} else {
+					memoryHWstateValue = float64(1)
+				}
+				ch <- prometheus.MustNewConstMetric(memoryHWDesc, prometheus.GaugeValue, memoryHWstateValue, metricLabelValues...)
+
+			}
+			cpuStatusInfo := hardwareStatusInfo.CpuStatusInfo
+			for _, cpuStatusInfoItem := range cpuStatusInfo {
+				cpuStatusInfoData := cpuStatusInfoItem.GetHostHardwareElementInfo()
+				cpuStatusName := cpuStatusInfoData.Name
+				cpuStatusDescription := cpuStatusInfoData.Status.GetElementDescription()
+				metricLabelNames := append(hostLabelNames, "component")
+				metricLabelValues := append(hostLabelValues, cpuStatusName)
+				cpuHWDesc := prometheus.NewDesc(
+					prometheus.BuildFQName(namespace, hostSubsystem, "cpu_hardware_status"),
+					"cpu hardware status, 0 for green, 1 for red",
+					metricLabelNames,
+					nil,
+				)
+				var cpuHWstateValue float64
+				if cpuStatusDescription.Key == "Green" {
+					cpuHWstateValue = float64(0)
+				} else {
+					cpuHWstateValue = float64(1)
+				}
+				ch <- prometheus.MustNewConstMetric(cpuHWDesc, prometheus.GaugeValue, cpuHWstateValue, metricLabelValues...)
+
+			}
+
+			StorageStatusInfo := hardwareStatusInfo.StorageStatusInfo
+			for _, storageStatusInfoItem := range StorageStatusInfo {
+				storageStatusName := storageStatusInfoItem.HostHardwareElementInfo.Name
+				storageStatusDescription := storageStatusInfoItem.HostHardwareElementInfo.Status.GetElementDescription()
+
+				metricLabelNames := append(hostLabelNames, "component")
+				metricLabelValues := append(hostLabelValues, storageStatusName)
+				storageHWDesc := prometheus.NewDesc(
+					prometheus.BuildFQName(namespace, hostSubsystem, "storage_hardware_status"),
+					"storage hardware status, 0 for green, 1 for red",
+					metricLabelNames,
+					nil,
+				)
+				var storageHWstateValue float64
+				if storageStatusDescription.Key == "Green" {
+					storageHWstateValue = float64(0)
+				} else {
+					storageHWstateValue = float64(1)
+				}
+				ch <- prometheus.MustNewConstMetric(storageHWDesc, prometheus.GaugeValue, storageHWstateValue, metricLabelValues...)
+
+			}
+
+			networkRuntimeInfo := hostRumtime.NetworkRuntimeInfo
+
+			netStackInstanceRuntimeInfo := networkRuntimeInfo.NetStackInstanceRuntimeInfo
+			for _, netStackInstanceRuntimeInfoItem := range netStackInstanceRuntimeInfo {
+
+				netStackInstanceKey := netStackInstanceRuntimeInfoItem.NetStackInstanceKey
+				netStackInstanceState := netStackInstanceRuntimeInfoItem.State
+
+				metricLabelNames := append(hostLabelNames, "component")
+				metricLabelValues := append(hostLabelValues, netStackInstanceKey)
+				netStackStateDesc := prometheus.NewDesc(
+					prometheus.BuildFQName(namespace, hostSubsystem, "network_statck_state"),
+					"network stack state, 1 for active, 0 for inactive",
+					metricLabelNames,
+					nil,
+				)
+				var netStackstateValue float64
+				if netStackInstanceState == "active" {
+					netStackstateValue = float64(1)
+				} else {
+					netStackstateValue = float64(0)
+				}
+				ch <- prometheus.MustNewConstMetric(netStackStateDesc, prometheus.GaugeValue, netStackstateValue, metricLabelValues...)
+
+			}
+
+			networkResourceRuntime := networkRuntimeInfo.NetworkResourceRuntime.PnicResourceInfo
+			for _, pnicResourceInfoItem := range networkResourceRuntime {
+				pnicDevice := pnicResourceInfoItem.PnicDevice
+				pnicAvailableBandwidthForVMTraffic := pnicResourceInfoItem.AvailableBandwidthForVMTraffic
+				pnicUnusedBandwidthForVMTraffic := pnicResourceInfoItem.UnusedBandwidthForVMTraffic
+
+				metricLabelNames := append(hostLabelNames, "component")
+				metricLabelValues := append(hostLabelValues, pnicDevice)
+				pnicAvailableBandwidthForVMTrafficDesc := prometheus.NewDesc(
+					prometheus.BuildFQName(namespace, hostSubsystem, "pnic_available_bandwidth_for_vm_traffic"),
+					"pnic_available_bandwidth_for_vm_traffic",
+					metricLabelNames,
+					nil,
+				)
+
+				pnicUnusedBandwidthForVMTrafficDesc := prometheus.NewDesc(
+					prometheus.BuildFQName(namespace, hostSubsystem, "pnic_unused_bandwidth_for_vm_traffic"),
+					"pnic_unused_bandwidth_for_vm_traffic",
+					metricLabelNames,
+					nil,
+				)
+
+				ch <- prometheus.MustNewConstMetric(pnicAvailableBandwidthForVMTrafficDesc, prometheus.GaugeValue, float64(pnicAvailableBandwidthForVMTraffic), metricLabelValues...)
+				ch <- prometheus.MustNewConstMetric(pnicUnusedBandwidthForVMTrafficDesc, prometheus.GaugeValue, float64(pnicUnusedBandwidthForVMTraffic), metricLabelValues...)
+
+			}
 			// retrieve the vmotion status
 			var hostVmotionStatusValue float64
 			if hostSummary.Config.VmotionEnabled {
@@ -301,34 +454,34 @@ func (h *HostCollector) Collect(ch chan<- prometheus.Metric) {
 			hostAvailablePMemCapacityValue := float64(hostQuickStats.AvailablePMemCapacity)
 			ch <- prometheus.MustNewConstMetric(h.metrics["host_available_pmem_capacity"].desc, prometheus.GaugeValue, hostAvailablePMemCapacityValue, hostLabelValues...)
 
-			// retrueve the overall status
+			// retrieve the overall status
 
 			hostOveralStatusValue := parseOveralStatus(hostSummary.OverallStatus)
 
 			ch <- prometheus.MustNewConstMetric(h.metrics["host_overall_status"].desc, prometheus.GaugeValue, hostOveralStatusValue, hostLabelValues...)
 
-			// retrueve the memory size
+			// retrieve the memory size
 			hostHardware := hostSummary.Hardware
 			hostMemSizeValue := float64(hostHardware.MemorySize)
 			ch <- prometheus.MustNewConstMetric(h.metrics["host_memory_size"].desc, prometheus.GaugeValue, hostMemSizeValue, hostLabelValues...)
 
-			// retrueve the cpu counts
+			// retrieve the cpu counts
 			hostCpuCountsValue := float64(hostHardware.NumCpuPkgs)
 			ch <- prometheus.MustNewConstMetric(h.metrics["host_cpu_sockets"].desc, prometheus.GaugeValue, hostCpuCountsValue, hostLabelValues...)
 
-			// retrueve the cpu cores
+			// retrieve the cpu cores
 			hostCpuCoresValue := float64(hostHardware.NumCpuCores)
 			ch <- prometheus.MustNewConstMetric(h.metrics["host_cpu_cores"].desc, prometheus.GaugeValue, hostCpuCoresValue, hostLabelValues...)
 
-			// retrueve the cpu threads
+			// retrieve the cpu threads
 			hostCputhreadsValue := float64(hostHardware.NumCpuThreads)
 			ch <- prometheus.MustNewConstMetric(h.metrics["host_cpu_threads"].desc, prometheus.GaugeValue, hostCputhreadsValue, hostLabelValues...)
 
-			// retrueve the nic counts
+			// retrieve the nic counts
 			hostNicCountsValue := float64(hostHardware.NumNics)
 			ch <- prometheus.MustNewConstMetric(h.metrics["host_nic_counts"].desc, prometheus.GaugeValue, hostNicCountsValue, hostLabelValues...)
 
-			// retrueve the hba counts
+			// retrieve the hba counts
 			hostHbaCountsValue := float64(hostHardware.NumHBAs)
 			ch <- prometheus.MustNewConstMetric(h.metrics["host_hba_counts"].desc, prometheus.GaugeValue, hostHbaCountsValue, hostLabelValues...)
 
