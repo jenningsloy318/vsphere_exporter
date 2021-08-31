@@ -34,12 +34,6 @@ func NewVMClient(context context.Context, vcHost string, username string, passwo
 		log.Errorf("error when creating new vCenter client, %v", err)
 		return nil, err
 	}
-
-	err = newVcClient.Login(context, vcURL.User)
-	if err != nil {
-		log.Errorf("error when trying to login on vCenter, %v", err)
-		//		return nil, err
-	}
 	return &VMClient{
 		ctx:           context,
 		govmomiClient: newVcClient,
