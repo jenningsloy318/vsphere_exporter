@@ -33,25 +33,34 @@ var (
 func metricsHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		registry := prometheus.NewRegistry()
-
-		target := r.URL.Query().Get("target")
-		if target == "" {
-			http.Error(w, "'target' parameter must be specified", 400)
-			return
-		}
-
+		var target string
+		var ctx context.Context
 		var clusterConfig *config.ClusterConfig
 		var err error
-		if clusterConfig, err = sc.ClusterConfigForTarget(target); err != nil {
-			log.Errorf("Error getting credentialfor target %s,%s", target, err)
-			return
+		if sc.C.Mode == "single" {
+			target = sc.C.EnabledCluster
+			if clusterConfig, err = sc.SetSingleModeClusterCredential(); err != nil {
+				log.Errorf("Error getting credential %s", target, err)
+				return
+			}
+		} else {
+			target = r.URL.Query().Get("target")
+			if target == "" {
+				http.Error(w, "'target' parameter must be specified in multi scrape mode", 400)
+				return
+			}
+
+			if clusterConfig, err = sc.ClusterConfigForTarget(target); err != nil {
+				log.Errorf("Error getting credential for target %s,%s", target, err)
+				return
+			}
+			ctx = r.Context()
+
 		}
-		ctx := r.Context()
 		if ctx == nil {
 			ctx = context.Background()
 		}
 		log.Infof("starting scraping target %s", target)
-
 		collector := collector.NewVshpereCollector(ctx, target, clusterConfig.Username, clusterConfig.Password)
 		registry.MustRegister(collector)
 		gatherers := prometheus.Gatherers{

@@ -9,7 +9,9 @@ import (
 )
 
 type Config struct {
-	Clusters map[string]ClusterConfig `yaml:"clusters"`
+	Mode           string                   `yaml:"mode"`
+	EnabledCluster string                   `yaml:"enabled_cluster"`
+	Clusters       map[string]ClusterConfig `yaml:"clusters"`
 }
 
 type SafeConfig struct {
@@ -42,7 +44,11 @@ func (sc *SafeConfig) ReloadConfig(configFile string) error {
 	log.Infoln("Loaded config file")
 	return nil
 }
+func (sc *SafeConfig) SetSingleModeClusterCredential() (*ClusterConfig, error) {
 
+	return sc.ClusterConfigForTarget(sc.C.EnabledCluster)
+
+}
 func (sc *SafeConfig) ClusterConfigForTarget(target string) (*ClusterConfig, error) {
 	sc.Lock()
 	defer sc.Unlock()

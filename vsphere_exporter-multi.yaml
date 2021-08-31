@@ -1,0 +1,8 @@
+mode: multiple
+clusters:
+    10.36.51.11:
+      username: pass
+      password: pass
+    10.36.51.12:
+      username: user
+      password: pass      
